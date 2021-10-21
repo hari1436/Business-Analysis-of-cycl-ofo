@@ -1,0 +1,165 @@
+---
+title: "CSE 3020 PROJECT"
+output: html_notebook
+---
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(data.table)
+library(dplyr)
+```
+
+```{r}
+trips <- fread("final_tripdata.csv")
+colnames(trips) <- c("ride_id","rideable_type","started_at","ended_at",
+                     "start_station_name","start_station_id",
+                     "end_station_name","end_station_id",
+                     "start_lat","start_lng","end_lat","end_lng",
+                     "member_casual","day_week_start","duration","distance")
+```
+
+```{r}
+str(trips)
+```
+
+```{r}
+clean_trips <- trips[distance!=-1 & duration >0]
+clean_trips <- clean_trips[, day_week_start:= c("1.Sunday", "2.Monday", "3.Tuesday","4.Wednesday","5.Thursday","6.Friday","7.Saturday")[day_week_start]]
+clean_trips$day_week_start
+clean_trips <- clean_trips[,day:=as.Date(started_at)][,hour:= hour(started_at)]
+str(clean_trips)
+clean_trips <- 
+  clean_trips[,period:=case_when(
+    hour(started_at)>=6 & hour(started_at)<11 ~ '1.Morning',
+    hour(started_at)>=11 & hour(started_at)<13 ~ '2.Lunch',
+    hour(started_at)>=13 & hour(started_at)<17 ~ '3.Afternoon',
+    hour(started_at)>=17 & hour(started_at)<22 ~ '4.Evening',
+    hour(started_at)<6 | hour(started_at)>= 22 ~ '5.Night')]
+
+clean_trips <- clean_trips[,duration:=as.double(duration)]
+
+clean_trips <- 
+  clean_trips[,.(ride_id, rideable_type, start_station_name, end_station_name, 
+                 member_casual, duration, distance, day_week_start, day, hour, period)]
+
+```
+
+```{r}
+typeof(clean_trips)
+glimpse(clean_trips)
+```
+# ANALYSIS PART
+```{r}
+clean_trips[,.(num_rides = .N),by=member_casual]
+clean_trips[,.(num_rides = .N),by=rideable_type]
+clean_trips[start_station_name != "",.(num_rides = .N), by=start_station_name][order(num_rides,decreasing = TRUE),.SD[1:10]]
+clean_trips[end_station_name != "",.(num_rides = .N),
+            by=end_station_name][order(num_rides,decreasing = TRUE),.SD[1:10]]
+clean_trips[,.(num_rides = .N, 
+               min_duration = min(duration), 
+               average_duration = mean(duration), 
+               max_duration = max(duration))]
+clean_trips[,.(num_rides = .N, 
+               min_distance = min(distance), 
+               average_distance = mean(distance), 
+               max_distance = max(distance))]
+clean_trips[,.(num_rides = .N),
+            day_week_start][,.(day_week_start, num_rides, 
+                               percent = num_rides / sum(num_rides)*100)][order(day_week_start)]
+clean_trips %>% group_by(member_casual,day_week_start) %>%
+  summarise(num_rides = n(), .groups = "drop_last") %>%
+  mutate(percent = num_rides / sum(num_rides)*100)
+
+
+```
+
+# VISUALIZATION
+```{r}
+clean_trips %>% group_by(day) %>%
+  summarise(num_rides = n()) %>%
+  ggplot() +
+  geom_step(mapping = aes(x = day, y=num_rides)) +
+  geom_smooth(mapping = aes(x = day, y=num_rides), method = 'loess', formula = 'y ~ x') +
+   theme(axis.text.x = element_text(angle = 45)) +
+  labs(title="Number of rides since 2020",
+       subtitle = "Total Population",
+      x="Date",
+      y="Number of rides")
+```
+```{r}
+clean_trips %>% group_by(member_casual, day) %>%
+  summarise(num_rides = n(), .groups = "drop_last") %>%
+  ggplot() +
+  geom_step(mapping = aes(x = day, y=num_rides)) +
+  geom_smooth(mapping = aes(x = day, y=num_rides), method = 'loess', formula = 'y ~ x') +
+  facet_wrap(~member_casual) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  labs(title="Number of rides since 2020",
+       subtitle = "Distributed by casual users & annual members",
+      x="Date",
+      y="Number of rides")
+```
+
+```{r}
+clean_trips %>% group_by(member_casual,day) %>%
+  summarise(num_rides = n(),.groups = "drop_last") %>%
+  ggplot(aes(x = day, y=num_rides, colour = member_casual)) +
+  geom_line() +
+  geom_smooth(method = 'loess', formula = 'y ~ x') +
+   theme(axis.text.x = element_text(angle = 45)) +
+  labs(title="Number of rides since 2020",
+       subtitle = "Distributed by casual users & annual members",
+      x="Date",
+      y="Number of rides",
+      color = "Type of user")
+```
+
+```{r}
+clean_trips[duration<200000,.(dur_rides=mean(duration)),by=day] %>%
+  ggplot(aes(x = day, y=dur_rides)) +
+  geom_line() +
+  geom_smooth(method = 'loess', formula = 'y ~ x') +
+   theme(axis.text.x = element_text(angle = 45)) +
+  labs(title="Average duration of rides",
+       subtitle = "Total Population",
+      x="Date",
+      y="Duration of rides")
+```
+
+```{r}
+clean_trips %>% 
+  filter(duration < 200000) %>% 
+  group_by(member_casual, day) %>%
+  summarise(dur_rides = mean(duration), .groups = "drop_last") %>%
+  ggplot(aes(x = day, y=dur_rides, color = member_casual)) +
+  geom_line() +
+  geom_smooth(method = 'loess', formula = 'y ~ x') +
+   theme(axis.text.x = element_text(angle = 45)) +
+  labs(title="Average duration of rides",
+       subtitle = "Distributed by casual users & annual members",
+      x="Date",
+      y="Duration of rides",
+      color="Type of user")
+```
+
+```{r}
+clean_trips %>% 
+  filter(duration < 200000) %>% 
+  group_by(member_casual, day_week_start) %>%
+  summarise(average_duration = mean(duration), .groups = "drop_last") %>%
+  ggplot() +
+  geom_col(position = "dodge",
+           mapping = aes(x = day_week_start, y = average_duration, fill = member_casual)) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  labs(title="Average duration of the ride per weekday",
+       subtitle = "Distributed by casual users & annual members",
+      x="Weekday",
+      y="Average duration",
+      fill = "Type of user")
+
+```
+```{r}
+
+```
+
