@@ -160,6 +160,234 @@ clean_trips %>%
 
 ```
 ```{r}
+clean_trips %>% 
+  filter(duration < 200000) %>% 
+  group_by(member_casual,day) %>% 
+  summarise(duration = mean(duration), distance = mean(distance), .groups = "drop_last") %>% 
+  ggplot(aes(x = duration, y=distance, color = member_casual)) +
+  geom_point() +
+  labs(title="Duration of the ride vs distance between stations",
+       subtitle = "",
+      x="Duration",
+      y="Distance",
+      color = "Type of user")
+
+```
+
+```{r}
+cor(clean_trips$duration, clean_trips$distance) # checking the correlation using inbuilt method
+```
+
+
+```{r}
+clean_trips %>% 
+  group_by(member_casual, day_week_start) %>%
+  summarise(average_distance = mean(distance), .groups = "drop_last") %>%
+  ggplot() +
+  geom_col(position = "dodge",
+           mapping = aes(x = day_week_start, y = average_distance, fill = member_casual)) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  labs(title="Average distance between stations per weekday",
+       subtitle = "Distributed by casual users & annual members",
+      x="Weekday",
+      y="Average distance",
+      fill = "Type of user")
+```
+
+```{r}
+clean_trips%>%
+  group_by(day_week_start)%>%
+  summarise(num_rides=n()) %>%
+  mutate(percent = round(num_rides / sum(num_rides) * 100, digits = 2)) %>%
+  ggplot(aes(x = "", y = percent, fill = day_week_start)) +
+  geom_col(color = "black") +
+  geom_label(aes(label = percent),	position = position_stack(vjust = 0.5),
+             show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Weekday")) +
+  labs(title="Number of rides per weekday (in %)",
+      subtitle = "Whole population",
+      x="",
+      y="Percent") + 
+  coord_polar(theta = "y")
+```
+```{r}
+ clean_trips %>% group_by(member_casual, day_week_start) %>%
+  summarise(num_rides = n(), .groups = "drop_last")%>%
+  mutate(percent = round(num_rides / sum(num_rides) * 100, digits = 2)) %>%
+  ggplot(aes(x = "", y = percent, fill = day_week_start)) +
+  geom_col(color = "black") +
+  facet_wrap(~member_casual) +
+  geom_label(aes(label = percent),	position = position_stack(vjust = 0.5),
+             show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Weekday")) +
+  labs(title="Number of rides per weekday (in %)",
+      subtitle = "Distributed by casual users & annual members",
+      x="",
+      y="Percent") + 
+  coord_polar(theta = "y")
+```
+```{r}
+clean_trips %>% ggplot() +
+  geom_bar(mapping = aes(x = day_week_start)) +
+  facet_wrap(~member_casual) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  labs(title="Number of rides per weekday",
+       subtitle = "Distributed by casual users & annual members",
+      x="Weekday",
+      y="Number of rides")
+
+```
+
+```{r}
+clean_trips %>% ggplot() +
+  geom_bar(mapping = aes(x = day_week_start, fill = rideable_type)) +
+  facet_wrap(~member_casual) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  labs(title="Number of rides per weekday and type of bike",
+       subtitle = "Distributed by casual users & annual members",
+      x="Weekday",
+      y="Number of rides",
+      fill = "Type of bike")
+```
+
+```{r}
+clean_trips %>% group_by(period) %>%
+  summarise(num_rides = n()) %>%
+  mutate(percent = round(num_rides / sum(num_rides) * 100, digits = 2)) %>%
+  ggplot(aes(x = "", y = percent, fill = period)) +
+  geom_col(color = "black") +
+  geom_label(aes(label = percent),	position = position_stack(vjust = 0.5),
+             show.legend = FALSE) +
+  guides(fill = guide_legend(title = "period")) +
+  labs(title="Number of rides per period (in %)",
+      subtitle = "Whole population",
+      x="",
+      y="Percent") + 
+  coord_polar(theta = "y")
+```
+
+```{r}
+clean_trips %>% group_by(member_casual, period) %>%
+  summarise(num_rides = n(), .groups = "drop_last") %>%
+  mutate(percent = round(num_rides / sum(num_rides) * 100, digits = 2)) %>%
+  ggplot(aes(x = "", y = percent, fill = period)) +
+  geom_col(color = "black") +
+  facet_wrap(~member_casual) +
+  geom_label(aes(label = percent),	position = position_stack(vjust = 0.5),
+             show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Period")) +
+  labs(title="Number of rides per time of the day (in %)",
+      subtitle = "Distributed by casual users & annual members",
+      x="",
+      y="Percent") + 
+  coord_polar(theta = "y")
+```
+
+```{r}
+clean_trips %>% ggplot() +
+  geom_bar(mapping = aes(x = hour, fill = member_casual),position = "dodge") +
+  labs(title="Number of rides per hour",
+       subtitle = "Distributed by casual users & annual members",
+      x="Hour",
+      y="Number of rides",
+      fill = "Type of user")
+```
+
+```{r}
+clean_trips %>% ggplot() +
+  geom_bar(mapping = aes(x = period, fill = member_casual),position = "dodge") +
+  labs(title="Number of rides per time of the day",
+       subtitle = "Distributed by casual users & annual members",
+      x="Time of the day",
+      y="Number of rides",
+      fill = "Type of user")
+```
+
+```{r}
+clean_trips %>% ggplot() +
+  geom_bar(mapping = aes(x = day_week_start, fill = period)) +
+  facet_wrap(~member_casual) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  labs(title="Number of rides per weekday and time of the day",
+       subtitle = "Distributed by casual users & annual members",
+      x="Weekday",
+      y="Number of rides",
+      fill = "Time of the day")
+
+```
+
+```{r}
+stations <- trips[start_station_name != "",.(member_casual, start_station_name,started_at)]
+```
+
+
+```{r}
+stationsb <- trips [end_station_name != "",.(member_casual, end_station_name,ended_at)]
+  
+rm(trips)
+colnames(stations) <- c("member_casual","station","time")
+colnames(stationsb) <- c("member_casual","station","time")
+
+stations <- rbind(stations, stationsb)
+rm(stationsb)
+```
+```{r}
+stations <- 
+  stations[, weekday := c("1.Sunday","2.Monday", "3.Tuesday", 
+                         "4.Wednesday","5.Thursday", "6.Friday", "7.Saturday")
+           [as.POSIXlt(time)$wday + 1]]
+```
+
+```{r}
+stations <- stations[,time := hour(time)]
+```
+
+```{r}
+stations %>% 
+  group_by(station) %>%
+  summarise(num_rides = n()) %>%
+  slice_max(num_rides, n = 10)
+```
+
+```{r}
+selected_stations <- 
+  stations %>% 
+  filter(member_casual=='casual') %>%
+  group_by(station) %>%
+  summarise(num_rides = n()) %>%
+  slice_max(num_rides, n = 10)
+selected_stations <- merge(stations, selected_stations, "station") %>%
+  select(station, time, weekday)
+rm(stations)
+```
+
+```{r}
+selected_stations %>% 
+  group_by(time, station) %>%
+  summarise(num_rides = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = time, y=num_rides, color = station)) +
+  geom_line() +
+  labs(title="Best hour for station",
+      x="Hour of the day",
+      y="Number of rides",
+      color = "Station")
+```
+
+```{r}
+selected_stations %>%
+  group_by(weekday, station) %>%
+  summarise(num_rides = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = weekday, y=num_rides, color = station)) +
+  geom_point() +
+   theme(axis.text.x = element_text(angle = 45)) +
+  labs(title="Best weekday for station",
+      x="Weekday",
+      y="Number of rides",
+      color = "Station")
+
+```
+
+```{r}
 
 ```
 
